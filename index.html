@@ -209,6 +209,7 @@
         // --- COMPONENTS/INTERACTIVES/KUDOSBOARD.TSX ---
         const KudosBoard = () => {
             const { userName } = useAuth();
+            const { recordKudo } = useGamification();
             const [kudos, setKudos] = useState(() => {
                 const saved = localStorage.getItem('kudos-board');
                 return saved ? JSON.parse(saved) : [];
@@ -233,6 +234,7 @@
                 if (!to || !from || !message) return;
                 const newKudo = { to, from, message, value, timestamp: Date.now() };
                 setKudos([newKudo, ...kudos]);
+                recordKudo();
                 setTo('');
                 setMessage('');
             };
@@ -281,6 +283,7 @@
 
         // --- COMPONENTS/INTERACTIVES/PERFECTIONGAME.TSX ---
         const PerfectionGame = () => {
+            const { completeActivity } = useGamification();
             const [score, setScore] = useState(7);
             const [positive, setPositive] = useState('');
             const [improvements, setImprovements] = useState('');
@@ -288,6 +291,7 @@
 
             const handleSubmit = (e) => {
                 e.preventDefault();
+                completeActivity('agi_perfection', 20, 'Perfection Game');
                 setSubmitted(true);
             };
 
@@ -516,6 +520,16 @@
                 });
             }, [completedActivities, addPoints]);
 
+            const recordKudo = useCallback(() => {
+                const isFirst = !completedActivities.has('rec_kudos');
+                const kudoPoints = isFirst ? 25 : 5;
+                addPoints(kudoPoints);
+                if (isFirst) {
+                    setCompletedActivities(prev => new Set(prev).add('rec_kudos'));
+                }
+                setCelebration({ type: 'activity', data: { title: isFirst ? 'Primer Kudo Enviado' : 'Kudo Enviado', points: kudoPoints } });
+            }, [completedActivities, addPoints]);
+
             const clearCelebration = useCallback(() => setCelebration(null), []);
             
             const getBadges = useCallback(() => {
@@ -527,8 +541,8 @@
             }, [badges]);
             
             const value = useMemo(() => ({
-                points, completedActivities, badges, streak: streakData.count, addPoints, completeActivity, getBadges, celebration, clearCelebration,
-            }), [points, completedActivities, badges, streakData.count, addPoints, completeActivity, getBadges, celebration, clearCelebration]);
+                points, completedActivities, badges, streak: streakData.count, addPoints, completeActivity, recordKudo, getBadges, celebration, clearCelebration,
+            }), [points, completedActivities, badges, streakData.count, addPoints, completeActivity, recordKudo, getBadges, celebration, clearCelebration]);
 
             return <GamificationContext.Provider value={value}>{children}</GamificationContext.Provider>;
         };
@@ -675,11 +689,18 @@
                         <p className="mt-4 text-slate-600">{activity.description}</p>
                         {activity.interactiveElement && <div className="mt-4 p-4 bg-slate-50 rounded-md border border-slate-200">{activity.interactiveElement}</div>}
                     </div>
-                    <div className="bg-slate-50 px-6 py-4">
-                        <button onClick={() => completeActivity(activity.id, activity.points, activity.title)} disabled={isCompleted} className={`w-full font-bold py-2 px-4 rounded-md transition-all duration-300 flex items-center justify-center space-x-2 ${isCompleted ? 'bg-green-500 text-white cursor-not-allowed' : 'bg-white text-slate-700 ring-2 ring-slate-300 hover:ring-slate-400 hover:bg-slate-100'}`}>
-                            {isCompleted ? (<><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg><span>Completado</span></>) : (<span>Marcar como Completado</span>)}
-                        </button>
-                    </div>
+                    {activity.id !== 'rec_kudos' && (
+                        <div className="bg-slate-50 px-6 py-4">
+                            <button onClick={() => completeActivity(activity.id, activity.points, activity.title)} disabled={isCompleted} className={`w-full font-bold py-2 px-4 rounded-md transition-all duration-300 flex items-center justify-center space-x-2 ${isCompleted ? 'bg-green-500 text-white cursor-not-allowed' : 'bg-white text-slate-700 ring-2 ring-slate-300 hover:ring-slate-400 hover:bg-slate-100'}`}>
+                                {isCompleted ? (<><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg><span>Completado</span></>) : (<span>Marcar como Completado</span>)}
+                            </button>
+                        </div>
+                    )}
+                    {activity.id === 'rec_kudos' && (
+                        <div className="bg-blue-50 px-6 py-3 text-center">
+                            <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Actividad Recurrente • +5 pts extra</span>
+                        </div>
+                    )}
                 </div>
             );
         };
